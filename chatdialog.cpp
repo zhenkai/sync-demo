@@ -14,7 +14,7 @@
 static const int HELLO_INTERVAL = 90;  // seconds
 
 ChatDialog::ChatDialog(QWidget *parent)
-  : QDialog(parent), m_sock(NULL), m_lastMsgTime(0)
+  : QDialog(parent), m_sock(NULL), m_lastMsgTime(0), m_reaped(false)
 {
   // have to register this, otherwise
   // the signal-slot system won't recognize this type
@@ -318,6 +318,7 @@ ChatDialog::processTreeUpdate(const std::vector<Sync::MissingDataInfo> v)
 
   int n = v.size();
   int totalMissingPackets = 0;
+
   for (int i = 0; i < n; i++) 
   {
     totalMissingPackets += v[i].high.getSeq() - v[i].low.getSeq() + 1;
@@ -325,6 +326,11 @@ ChatDialog::processTreeUpdate(const std::vector<Sync::MissingDataInfo> v)
   
   for (int i = 0; i < n; i++) 
   {
+    if (!m_reaped)
+    {
+      m_reaperMap.insert(v[i].prefix, false);
+    }
+
     if (totalMissingPackets < 4)
     {
       for (Sync::SeqNo seq = v[i].low; seq <= v[i].high; ++seq)
@@ -341,6 +347,14 @@ ChatDialog::processTreeUpdate(const std::vector<Sync::MissingDataInfo> v)
     }
   }
 
+
+  if (!m_reaped)
+  {
+    std::cout << "Totol zombie count " << m_reaperMap.size() << std::endl;
+  }
+
+  m_reaped = true;
+
   // adjust the view
   fitView();
 
@@ -350,6 +364,7 @@ void
 ChatDialog::processDataWrapper(std::string name, const char *buf, size_t len)
 {
   emit dataReceived(name.c_str(), buf, len, true);
+  m_reaperMap.remove(name.c_str());
 #ifdef __DEBUG
   std::cout <<"<<< " << name << " fetched" << std::endl;
 #endif
@@ -359,6 +374,8 @@ void
 ChatDialog::processDataNoShowWrapper(std::string name, const char *buf, size_t len)
 {
   emit dataReceived(name.c_str(), buf, len, false);
+  m_reaperMap.remove(name.c_str());
+  std::cout <<"<<< " << name << " fetched" << std::endl;
 }
 
 void
@@ -556,6 +573,24 @@ ChatDialog::sendJoin()
   formControlMessage(msg, SyncDemo::ChatMessage::JOIN);
   sendMsg(msg);
   QTimer::singleShot(m_randomizedInterval, this, SLOT(sendHello()));
+  QTimer::singleShot(2000, this, SLOT(kill()));
+}
+
+void
+ChatDialog::kill()
+{
+  QMapIterator<std::string, bool> it(m_reaperMap);
+  while(it.hasNext())
+  {
+    it.next();
+    std::string prefix = it.key();
+    m_sock->remove(prefix); 
+    std::cout << "Cleaned prefix: " << prefix << std::endl;
+    QTimer::singleShot(2000, this, SLOT(kill()));
+    m_reaperMap.remove(prefix);
+    std::cout << "zombie count " << m_reaperMap.size() << std::endl;
+    break;
+  }
 }
 
 void 

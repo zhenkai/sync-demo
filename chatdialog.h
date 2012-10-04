@@ -10,6 +10,7 @@
 #include <sync-logic.h>
 #include <sync-seq-no.h>
 #include <QSystemTrayIcon>
+#include <QMap>
 
 #define ORGANIZATION "IRL@UCLA"
 #define APPLICATION "CHRONOS"
@@ -66,6 +67,7 @@ private slots:
   void checkSetting();
   void settingUpdated(QString, QString, QString);
   void sendHello();
+  void kill();
   void sendJoin();
   void replot();
   void updateRosterList(QStringList);
@@ -92,6 +94,8 @@ private:
   QTimer *m_timer;
   QStringListModel *m_rosterModel;
   bool m_minimaniho;
+  QMap<std::string, bool> m_reaperMap;
+  bool m_reaped;
 
   // icon related
   QAction *minimizeAction;
