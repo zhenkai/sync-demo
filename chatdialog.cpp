@@ -348,11 +348,6 @@ ChatDialog::processTreeUpdate(const std::vector<Sync::MissingDataInfo> v)
   }
 
 
-  if (!m_reaped)
-  {
-    std::cout << "Totol zombie count " << m_reaperMap.size() << std::endl;
-  }
-
   m_reaped = true;
 
   // adjust the view
@@ -364,7 +359,6 @@ void
 ChatDialog::processDataWrapper(std::string name, const char *buf, size_t len)
 {
   emit dataReceived(name.c_str(), buf, len, true);
-  m_reaperMap.remove(name.c_str());
 #ifdef __DEBUG
   std::cout <<"<<< " << name << " fetched" << std::endl;
 #endif
@@ -374,7 +368,6 @@ void
 ChatDialog::processDataNoShowWrapper(std::string name, const char *buf, size_t len)
 {
   emit dataReceived(name.c_str(), buf, len, false);
-  m_reaperMap.remove(name.c_str());
   std::cout <<"<<< " << name << " fetched" << std::endl;
 }
 
@@ -401,6 +394,7 @@ ChatDialog::processData(QString name, const char *buf, size_t len, bool show)
   std::string stdStrName = name.toStdString();
   std::string stdStrNameWithoutSeq = stdStrName.substr(0, stdStrName.find_last_of('/'));
   std::string prefix = stdStrNameWithoutSeq.substr(0, stdStrNameWithoutSeq.find_last_of('/'));
+  m_reaperMap.remove(prefix);
 #ifdef __DEBUG
   std::cout <<"<<< updating scene for" << prefix << ": " << msg.from()  << std::endl;
 #endif
@@ -573,7 +567,7 @@ ChatDialog::sendJoin()
   formControlMessage(msg, SyncDemo::ChatMessage::JOIN);
   sendMsg(msg);
   QTimer::singleShot(m_randomizedInterval, this, SLOT(sendHello()));
-  QTimer::singleShot(2000, this, SLOT(kill()));
+  QTimer::singleShot(60000, this, SLOT(kill()));
 }
 
 void
